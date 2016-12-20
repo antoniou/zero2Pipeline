@@ -1,0 +1,18 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "329485089133.dkr.ecr.eu-west-1.amazonaws.com/docker-codebuild-sample:latest",
+      "essential": true,
+      "memory": 1024,
+      "environment": [],
+      "portMappings": [
+        {
+          "hostPort": 8080,
+          "containerPort": 8080
+        }
+      ]
+    }
+  ]
+}

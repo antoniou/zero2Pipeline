@@ -1,0 +1,425 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Elastic Beanstalk Application Template",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Description": "Environment name",
+      "Default": "int"
+    },
+    "Application": {
+      "Type": "String",
+      "Description": "Application name",
+      "Default": "SimplePipeline"
+    },
+    "VPC": {
+      "Type": "String",
+      "Description": "VPC Identifier",
+      "AllowedPattern": "vpc-[0-9a-fA-F]*"
+    },
+    "PublicSubnet": {
+      "Type": "String",
+      "Description": "Public Subnet the ELB should be in",
+      "AllowedPattern": "subnet-[0-9a-fA-F]*"
+    },
+    "PrivateSubnet": {
+      "Type": "String",
+      "Description": "Private Subnet the WebServers should be in",
+      "AllowedPattern": "subnet-[0-9a-fA-F]*"
+    },
+    "ExistingBeanstalkApplication": {
+      "Type": "String",
+      "Default": "None",
+      "Description": "Reference to an existing beanstalk application"
+    },
+    "AppVersion": {
+      "Type": "String",
+      "Description": "Application version",
+      "Default": "None"
+    },
+    "CdnDefaultTTLInSeconds": {
+      "Type": "String",
+      "Default": "3600",
+      "Description": "The default time in seconds that objects stay in CloudFront caches before CloudFront forwards another request to the origin"
+    },
+    "S3ConfigBucketName": {
+      "Type": "String",
+      "Description": "Name of S3 bucket to retrieve Dockerrun configuration from",
+      "Default": "codepipeline-eu-west-1-329485089133"
+    },
+    "PublicProdUrl": {
+      "Type": "String",
+      "Description": "Publicly accessible production URL to be setup on the CDN",
+      "Default": "myaccount.stockport.gov.uk"
+    },
+    "MinInstanceCount": {
+      "Type": "String",
+      "Description": "Minimum amount of instances in the Autoscaling group",
+      "Default": "1"
+    },
+    "MaxInstanceCount": {
+      "Type": "String",
+      "Description": "Max amount of instances in the Autoscaling group",
+      "Default": "2"
+    },
+    "ClusterNodeType" : {
+      "Description" : "The compute and memory capacity of the nodes in the Redis Cluster",
+      "Type" : "String",
+      "Default" : "cache.t2.micro"
+    },
+    "BeanstalkInstanceType" : {
+      "Description" : "The instance type to run applications on",
+      "Type" : "String",
+      "Default" : "t2.small",
+      "AllowedValues" : ["t2.nano", "t2.micro", "t2.small", "t2.medium", "m3.medium"]
+    }
+
+  },
+  "Conditions": {
+    "CreateNewApplication": {
+      "Fn::Equals": [
+        {
+          "Ref": "ExistingBeanstalkApplication"
+        },
+        "None"
+      ]
+    },
+    "EnvironmentIsProduction": {
+      "Fn::Equals": [
+        {
+          "Ref": "Environment"
+        },
+        "prod"
+      ]
+    }
+  },
+  "Resources": {
+    "BeanstalkApplication": {
+      "Type": "AWS::ElasticBeanstalk::Application",
+      "Condition": "CreateNewApplication",
+      "Properties": {
+        "Description": "Beanstalk Application",
+        "ApplicationName": {
+          "Ref": "Application"
+        }
+      }
+    },
+    "BeanstalkApplicationVersion": {
+      "Type": "AWS::ElasticBeanstalk::ApplicationVersion",
+      "Properties": {
+        "Description": "No Version Description",
+        "ApplicationName": {
+          "Fn::If": [
+            "CreateNewApplication",
+            {
+              "Ref": "BeanstalkApplication"
+            },
+            {
+              "Ref": "ExistingBeanstalkApplication"
+            }
+          ]
+        },
+        "SourceBundle": {
+          "S3Bucket": {
+            "Ref": "S3ConfigBucketName"
+          },
+          "S3Key": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Ref": "Application"
+                },
+                "/MyAppBuild/MDdOYy9"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "beanstalkInstanceProfileRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "Environment"
+              },
+              "dts-beanstalk-role"
+            ]
+          ]
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+          "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier",
+          "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker",
+          "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier",
+          "arn:aws:iam::aws:policy/CloudWatchFullAccess",
+          "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+        ]
+      }
+    },
+    "beanstalkInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "beanstalkInstanceProfileRole"
+          }
+        ]
+      }
+    },
+    "BeanstalkDefaultConfigurationTemplate": {
+      "Type": "AWS::ElasticBeanstalk::ConfigurationTemplate",
+      "Description": "No Configuration Description",
+      "Properties": {
+        "ApplicationName": {
+          "Fn::If": [
+            "CreateNewApplication",
+            {
+              "Ref": "BeanstalkApplication"
+            },
+            {
+              "Ref": "ExistingBeanstalkApplication"
+            }
+          ]
+        },
+        "SolutionStackName": "64bit Amazon Linux 2016.09 v2.2.2 running Multi-container Docker 1.11.2 (Generic)",
+        "OptionSettings": [
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "IamInstanceProfile",
+            "Value": {
+              "Ref": "beanstalkInstanceProfile"
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "VPCId",
+            "Value": {
+              "Ref": "VPC"
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "Subnets",
+            "Value": {
+              "Ref": "PrivateSubnet"
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "ELBSubnets",
+            "Value": {
+              "Ref": "PublicSubnet"
+            }
+          },
+          {
+            "Namespace": "aws:ec2:vpc",
+            "OptionName": "AssociatePublicIpAddress",
+            "Value": "false"
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "InstanceType",
+            "Value": {
+              "Ref": "BeanstalkInstanceType"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "RootVolumeType",
+            "Value": "gp2"
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "RootVolumeSize",
+            "Value": "8"
+          },
+          {
+            "Namespace": "aws:autoscaling:updatepolicy:rollingupdate",
+            "OptionName": "RollingUpdateEnabled",
+            "Value": "true"
+          },
+          {
+            "Namespace": "aws:autoscaling:updatepolicy:rollingupdate",
+            "OptionName": "MaxBatchSize",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:autoscaling:updatepolicy:rollingupdate",
+            "OptionName": "MinInstancesInService",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:autoscaling:updatepolicy:rollingupdate",
+            "OptionName": "PauseTime",
+            "Value": "PT4M30S"
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "MinSize",
+            "Value": {
+              "Ref": "MinInstanceCount"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "MaxSize",
+            "Value": {
+              "Ref": "MaxInstanceCount"
+            }
+          },
+          {
+            "Namespace": "aws:autoscaling:asg",
+            "OptionName": "Cooldown",
+            "Value": "360"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "MeasureName",
+            "Value": "CPUUtilization"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "Statistic",
+            "Value": "Average"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "LowerThreshold",
+            "Value": "20"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "LowerBreachScaleIncrement",
+            "Value": "-1"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "UpperThreshold",
+            "Value": "80"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "UpperBreachScaleIncrement",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:application",
+            "OptionName": "Application Healthcheck URL",
+            "Value": "HTTP:5000/healthcheck"
+
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:environment",
+            "OptionName": "EnvironmentType",
+            "Value": "LoadBalanced"
+          },
+          {
+            "Namespace": "aws:elb:policies",
+            "OptionName": "ConnectionDrainingEnabled",
+            "Value": "true"
+          },
+          {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "MonitoringInterval",
+            "Value": "1"
+          },
+          {
+            "Namespace": "aws:autoscaling:trigger",
+            "OptionName": "BreachDuration",
+            "Value": "2"
+          },
+          {
+            "Namespace": "aws:elb:listener",
+            "OptionName": "ListenerEnabled",
+            "Value": "true"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:customoption",
+            "OptionName": "AWSEBEnvironment",
+            "Value": {
+              "Ref": "Environment"
+            }
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:command",
+            "OptionName": "BatchSizeType",
+            "Value": "Fixed"
+          },
+          {
+            "Namespace": "aws:elasticbeanstalk:command",
+            "OptionName": "BatchSize",
+            "Value": "1"
+          }
+        ]
+      }
+    },
+    "BeanstalkEnvironment": {
+      "Type": "AWS::ElasticBeanstalk::Environment",
+      "Properties": {
+        "Description": "No Environment Description",
+        "ApplicationName": {
+          "Fn::If": [
+            "CreateNewApplication",
+            {
+              "Ref": "BeanstalkApplication"
+            },
+            {
+              "Ref": "ExistingBeanstalkApplication"
+            }
+          ]
+        },
+        "CNAMEPrefix": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "Environment"
+              },
+              {
+                "Ref": "Application"
+              }
+            ]
+          ]
+        },
+        "TemplateName": {
+          "Ref": "BeanstalkDefaultConfigurationTemplate"
+        },
+        "VersionLabel": {
+          "Ref": "BeanstalkApplicationVersion"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "URL": {
+      "Description": "URL of the Environment",
+      "Value": {
+        "Fn::GetAtt": [
+          "BeanstalkEnvironment",
+          "EndpointURL"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+---
+# The identifiers of an existing VPC and its subnets
+networks:
+  preprod-vpc: &preprod-vpc
+    VPC: "vpc-0edf576b"
+    PrivateSubnet: "subnet-45d99c20"
+    PublicSubnet: "subnet-45d99c20"
+
+availability:
+  single: &single-availability
+    MinInstanceCount: "1"
+    MaxInstanceCount: "2"
+  high: &high-availability
+    MinInstanceCount: "2"
+    MaxInstanceCount: "4"
+
+schedule:
+  work-hours-only: &work-hours-only
+    WakeUp:
+      Recurrence: "0 7 * * 1-5"
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+    Sleep:
+      Recurrence: "0 20 * * 1-5"
+      MinSize: 0
+      MaxSize: 0
+      DesiredCapacity: 0
+
+int:
+  url: 'https://int-dts-origin.smbctest.com'
+  parameters:
+    # int environment is using preprod-vpc
+    <<: *preprod-vpc
+    # int environment only needs a single running instances
+    <<: *single-availability
+    BeanstalkInstanceType: "t2.nano"
