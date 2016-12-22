@@ -1,0 +1,25 @@
+{
+        "AWSTemplateFormatVersion" : "2010-09-09",
+        "Description" : "Template for creation of AWS CodePipeline pipeline",
+        "Resources" : {
+                "LambdaBucket": {
+                        "Type" : "AWS::S3::Bucket",
+                        "Properties" : {
+                                "BucketName" : {
+                                        "Fn::Join": [
+                                                "-",
+                                                [
+                                                        "lambda-store-eu-west-1",
+                                                        {
+                                                                "Ref": "AWS::AccountId"
+                                                        }
+                                                ]
+                                        ]
+                                },
+                                "VersioningConfiguration": {
+                                        "Status" : "Enabled"
+                                }
+                        }
+                }
+        }
+}

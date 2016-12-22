@@ -124,15 +124,7 @@
             "Ref": "S3ConfigBucketName"
           },
           "S3Key": {
-            "Fn::Join": [
-              "",
-              [
-                {
-                  "Ref": "Application"
-                },
-                "/MyAppBuild/MDdOYy9"
-              ]
-            ]
+            "Ref": "S3ConfigBucketObject"
           }
         }
       }
