@@ -1,0 +1,58 @@
+{
+    "CodePipeline.job": {
+        "id": "11111111-abcd-1111-abcd-111111abcdef",
+        "accountId": "111111111111",
+        "data": {
+            "actionConfiguration": {
+                "configuration": {
+                    "FunctionName": "MyLambdaFunctionForAWSCodePipeline",
+                    "UserParameters": "some-input-such-as-a-URL"
+                }
+            },
+            "inputArtifacts": [
+                {
+                    "location": {
+                        "s3Location": {
+                            "bucketName": "codepipeline-eu-west-1-329485089133",
+                            "objectKey": "SimplePipeline/MyInfra/8qIrGKa.zip"
+                        },
+                        "type": "S3"
+                    },
+                    "revision": null,
+                    "name": "MyInfra"
+                },
+                {
+                    "location": {
+                        "s3Location": {
+                            "bucketName": "codepipeline-eu-west-1-329485089133",
+                            "objectKey": "SimplePipeline/MyApp/6B3Y0as.zip"
+                        },
+                        "type": "S3"
+                    },
+                    "revision": null,
+                    "name": "MyApp"
+                }
+            ],
+            "outputArtifacts": [
+              {
+                  "location": {
+                      "s3Location": {
+                          "bucketName": "codepipeline-eu-west-1-329485089133",
+                          "objectKey": "SimplePipeline/MyApp/6B3Y0as.zip"
+                      },
+                      "type": "S3"
+                  },
+                  "revision": null,
+                  "name": "BuildParamsArtifact"
+              }
+
+            ],
+            "artifactCredentials": {
+                "secretAccessKey": "MJbf8JFIWL5wdEh/iMuaOOPSGVLmjuu/tJdO38JC",
+                "sessionToken": "",
+                "accessKeyId": "AKIAIUZMY2XMA4LQEZIQ"
+            },
+            "continuationToken": "A continuation token if continuing job"
+        }
+    }
+}

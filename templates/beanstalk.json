@@ -47,6 +47,10 @@
       "Description": "Name of S3 bucket to retrieve Dockerrun configuration from",
       "Default": "codepipeline-eu-west-1-329485089133"
     },
+    "S3ConfigBucketObject": {
+      "Type": "String",
+      "Description": "Object Artifact in S3 that contains the Dockerrun"
+    },
     "PublicProdUrl": {
       "Type": "String",
       "Description": "Publicly accessible production URL to be setup on the CDN",
