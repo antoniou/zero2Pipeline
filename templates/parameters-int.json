@@ -1,7 +1,5 @@
 {
-  "Parameters" : {
-    "VPC": "vpc-0edf576b",
-    "PrivateSubnet": "subnet-45d99c20",
-    "PublicSubnet": "subnet-45d99c20"
-  }
+  "VPC": "vpc-0edf576b",
+  "PrivateSubnet": "subnet-45d99c20",
+  "PublicSubnet": "subnet-45d99c20"
 }

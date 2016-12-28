@@ -186,7 +186,7 @@
                                                 "Name": "Source",
                                                 "Actions": [
                                                         {
-                                                                "Name": "Source",
+                                                                "Name": "ApplicationSource",
                                                                 "ActionTypeId": {
                                                                         "Category": "Source",
                                                                         "Owner": "ThirdParty",
@@ -205,33 +205,147 @@
                                                                         "OAuthToken" : "27201fb071cdfd7df6794ec21afa3e51ef4740de"
                                                                 },
                                                                 "RunOrder": 1
+                                                        },
+                                                        {
+                                                                "Name": "InfrastructureSource",
+                                                                "ActionTypeId": {
+                                                                        "Category": "Source",
+                                                                        "Owner": "ThirdParty",
+                                                                        "Version": "1",
+                                                                        "Provider": "GitHub"
+                                                                },
+                                                                "OutputArtifacts": [
+                                                                        {
+                                                                              "Name": "MyInfra"
+                                                                        }
+                                                                ],
+                                                                "Configuration": {
+                                                                        "Owner": "antoniou",
+                                                                        "Repo": "zero2Pipeline",
+                                                                        "Branch": "master",
+                                                                        "OAuthToken" : "27201fb071cdfd7df6794ec21afa3e51ef4740de"
+                                                                },
+                                                                "RunOrder": 1
                                                         }
                                                 ]
                                         },
                                         {
                                                 "Name" : "Build",
                                                 "Actions": [
-                                                        {
-                                                                "Name": "BuildCode",
-                                                                "ActionTypeId" : {
-                                                                        "Category" : "Build",
-                                                                        "Owner" : "AWS",
-                                                                        "Provider" : "CodeBuild",
-                                                                        "Version" : "1"
-                                                                },
-                                                                "Configuration": {
-                                                                        "ProjectName": "zero2Pipeline"
-                                                                },
-                                                                "InputArtifacts": [
+                                                  {
+                                                          "Name": "BuildCode",
+                                                          "ActionTypeId" : {
+                                                                  "Category" : "Build",
+                                                                  "Owner" : "AWS",
+                                                                  "Provider" : "CodeBuild",
+                                                                  "Version" : "1"
+                                                          },
+                                                          "Configuration": {
+                                                                  "ProjectName": "zero2Pipeline"
+                                                          },
+                                                          "InputArtifacts": [
+                                                                  {
                                                                         "Name" : "MyApp"
-                                                                ],
-                                                                "OutputArtifacts": [
-                                                                        {
-                                                                                "Name": "MyAppBuild"
-                                                                        }
-                                                                ],
-                                                                "RunOrder": 1
-                                                        }
+                                                                  }
+                                                          ],
+                                                          "OutputArtifacts": [
+                                                                  {
+                                                                          "Name": "MyAppBuild"
+                                                                  }
+                                                          ],
+                                                          "RunOrder": 1
+                                                  },
+                                                  {
+                                                          "Name": "GenerateBuildParameters",
+                                                          "ActionTypeId": {
+                                                                  "Category": "Invoke",
+                                                                  "Owner" : "AWS",
+                                                                  "Provider" : "Lambda",
+                                                                  "Version" : "1"
+                                                          },
+                                                          "Configuration": {
+                                                                  "FunctionName": {
+                                                                          "Ref": "GenerateBuildParamsFunction"
+                                                                  }
+                                                          },
+                                                          "InputArtifacts": [
+                                                                  {
+                                                                          "Name": "MyAppBuild"
+                                                                  },
+                                                                  {
+                                                                          "Name": "MyInfra"
+                                                                  }
+                                                          ],
+                                                          "OutputArtifacts": [
+                                                                  {
+                                                                          "Name": "GenBuildParams"
+                                                                  }
+                                                          ],
+                                                          "RunOrder": 2
+                                                  }
+                                                ]
+                                        },
+                                        {
+                                                "Name" : "Integration",
+                                                "Actions": [
+                                                  { "Name": "GenerateDeployParameters",
+                                                          "ActionTypeId": {
+                                                                  "Category": "Invoke",
+                                                                  "Owner" : "AWS",
+                                                                  "Provider" : "Lambda",
+                                                                  "Version" : "1"
+                                                          },
+                                                          "Configuration": {
+                                                                  "FunctionName": {
+                                                                          "Ref": "GenerateDeployParamsFunction"
+                                                                  }
+                                                          },
+                                                          "InputArtifacts": [
+                                                                  {
+                                                                          "Name": "MyInfra"
+                                                                  },
+                                                                  {
+                                                                          "Name": "GenBuildParams"
+                                                                  }
+                                                          ],
+                                                          "OutputArtifacts": [
+                                                                  {
+                                                                          "Name": "ParamGen"
+                                                                  }
+                                                          ],
+                                                          "RunOrder": 1
+                                                  },
+                                                  {
+                                                          "Name": "DeployCode",
+                                                          "ActionTypeId" : {
+                                                                  "Category" : "Deploy",
+                                                                  "Owner" : "AWS",
+                                                                  "Provider" : "CloudFormation",
+                                                                  "Version" : "1"
+                                                          },
+                                                          "Configuration": {
+                                                                  "StackName": "int-SimplePipeline-beanstalk",
+                                                                  "ActionMode": "CREATE_UPDATE",
+                                                                  "RoleArn": {
+                                                                          "Fn::GetAtt": [
+                                                                                  "DeployRole",
+                                                                                  "Arn"
+                                                                          ]
+                                                                  },
+                                                                  "Capabilities": "CAPABILITY_NAMED_IAM",
+                                                                  "TemplatePath": "MyInfra::templates/beanstalk.json",
+                                                                  "TemplateConfiguration": "ParamGen::templates/parameters-int.json"
+                                                          },
+                                                          "InputArtifacts": [
+                                                                  {
+                                                                        "Name": "MyInfra"
+                                                                  },
+                                                                  {
+                                                                        "Name": "ParamGen"
+                                                                  }
+                                                          ],
+                                                          "RunOrder": 2
+                                                  }
                                                 ]
                                         }
 
@@ -331,6 +445,139 @@
                                                 }
                                         ]
                                 }
+                        }
+                },
+
+                "DeployRole" : {
+                        "Type": "AWS::IAM::Role",
+                        "Properties": {
+                                "AssumeRolePolicyDocument": {
+                                        "Version" : "2012-10-17",
+                                        "Statement": [ {
+                                                "Effect": "Allow",
+                                                "Principal": {
+                                                        "Service": [ "cloudformation.amazonaws.com" ]
+                                                },
+                                                "Action": [ "sts:AssumeRole" ]
+                                        } ]
+                                }
+                        }
+
+                },
+
+                "DeployRolePolicy": {
+                        "Type": "AWS::IAM::Policy",
+                        "Properties": {
+                                "PolicyName" : "DeployPolicy",
+                                "Roles" : [
+                                        {
+                                                "Ref" : "DeployRole"
+                                        }
+                                ],
+                                "PolicyDocument" : {
+                                        "Version": "2012-10-17",
+                                        "Statement": [
+                                                {
+                                                        "Sid": "AllowAll",
+                                                        "Effect": "Allow",
+                                                        "Resource": [
+                                                          "*"
+                                                        ],
+                                                        "Action": [
+                                                          "*"
+                                                        ]
+                                                }
+                                        ]
+                                }
+                        }
+                },
+
+                "LambdaExecutionRole" : {
+                        "Type": "AWS::IAM::Role",
+                        "Properties": {
+                                "AssumeRolePolicyDocument": {
+                                        "Version" : "2012-10-17",
+                                        "Statement": [ {
+                                                "Effect": "Allow",
+                                                "Principal": {
+                                                        "Service": [ "lambda.amazonaws.com" ]
+                                                },
+                                                "Action": [ "sts:AssumeRole" ]
+                                        } ]
+                                }
+                        }
+
+                },
+
+                "LambdaExecutionRolePolicy": {
+                        "Type": "AWS::IAM::Policy",
+                        "Properties": {
+                                "PolicyName" : "LambdaPolicy",
+                                "Roles" : [
+                                        {
+                                                "Ref" : "LambdaExecutionRole"
+                                        }
+                                ],
+                                "PolicyDocument" : {
+                                        "Version": "2012-10-17",
+                                        "Statement": [
+                                          {
+                                                  "Action": [
+                                                    "logs:*"
+                                                  ],
+                                                  "Effect": "Allow",
+                                                  "Resource": "arn:aws:logs:*:*:*"
+                                          },
+                                          {
+                                                  "Action": [
+                                                            "codepipeline:PutJobSuccessResult",
+                                                            "codepipeline:PutJobFailureResult"
+                                                    ],
+                                                    "Effect": "Allow",
+                                                    "Resource": "*"
+                                           }
+                                        ]
+                              }
+                        }
+                },
+
+                "GenerateBuildParamsFunction": {
+                        "Type" : "AWS::Lambda::Function",
+                        "Properties" : {
+                              "Code" : {
+                                    "S3Bucket": "lambda-store-eu-west-1-329485089133",
+                                    "S3Key": "genBuildParams.zip"
+                              },
+                              "Description" : "Lambda Function that generates build-time parameters",
+                              "FunctionName" : "genBuildParams",
+                              "Handler" : "genBuildParams.lambda_handler",
+                              "Role": {
+                                    "Fn::GetAtt" : [
+                                            "LambdaExecutionRole",
+                                            "Arn"
+                                    ]
+                              },
+                              "Runtime" : "python2.7"
+                        }
+                },
+
+                "GenerateDeployParamsFunction": {
+                        "Type" : "AWS::Lambda::Function",
+                        "Properties" : {
+                              "Code" : {
+                                    "S3Bucket": "lambda-store-eu-west-1-329485089133",
+                                    "S3Key": "generateParams.zip"
+                              },
+                              "Description" : "Lambda Function that generates deploy-time parameters",
+                              "FunctionName" : "generateDeployParams",
+                              "Handler" : "generateParams.lambda_handler",
+                              "Role": {
+                                    "Fn::GetAtt" : [
+                                            "LambdaExecutionRole",
+                                            "Arn"
+                                    ]
+                              },
+                              "Runtime" : "python2.7"
                         }
                 },
 
